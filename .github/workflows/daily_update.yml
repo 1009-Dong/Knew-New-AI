@@ -1,0 +1,53 @@
+# 檔案路徑：.github/workflows/daily_update.yml
+# 說明：每天早上 7:00（台灣時間，UTC+8）自動執行更新腳本
+
+name: AI 每日觀察報 自動更新
+
+on:
+  schedule:
+    # UTC 23:00 = 台灣時間 07:00
+    - cron: '0 23 * * *'
+
+  # 讓你可以手動觸發（方便測試）
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: '是否輸出詳細 log'
+        required: false
+        default: 'false'
+
+jobs:
+  update-newspaper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1. 取得程式碼
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. 設定 Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. 安裝套件
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 4. 執行更新腳本
+      - name: Run update script
+        env:
+          TAVILY_API_KEY:        ${{ secrets.TAVILY_API_KEY }}
+          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          DROPBOX_ACCESS_TOKEN:  ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_FILE_PATH:     ${{ secrets.DROPBOX_FILE_PATH }}
+        run: python update_news.py
+
+      # 5. 如果失敗，發 email 通知（GitHub Actions 內建功能）
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "更新失敗，請檢查 Actions log"
+          echo "時間：$(date)"
